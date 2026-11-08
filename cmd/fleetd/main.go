@@ -96,8 +96,15 @@ func run(cfg config, log *slog.Logger) error {
 	}
 
 	srv := &http.Server{
-		Addr:              cfg.httpAddr,
-		Handler:           api.New(api.Deps{Registry: reg, Ready: db.Ping, Metrics: promReg, Log: log}),
+		Addr: cfg.httpAddr,
+		Handler: api.New(api.Deps{
+			Registry:        reg,
+			Query:           db.Query(cfg.ingest.Policy),
+			Ready:           db.Ping,
+			Metrics:         promReg,
+			Log:             log,
+			HistoryInterval: cfg.ingest.HistoryInterval,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	httpErr := make(chan error, 1)

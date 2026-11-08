@@ -20,10 +20,10 @@ talk through narrow interfaces:
 |----------------------|-------------------------------------------------------------|
 | `internal/fleet`     | The domain: robot state, liveness, alert rules. Pure, no IO. |
 | `internal/telemetry` | Vendor adapters that turn wire formats into `fleet.Sample`.  |
-| `internal/ingest`    | The pipeline: routing, sharding, batching, backpressure.     |
+| `internal/ingest`    | The pipeline: coalescing, batching, backpressure.            |
 | `internal/registry`  | Which robots exist and which site they belong to.            |
 | `internal/postgres`  | Storage, behind interfaces owned by the packages that use it. |
-| `internal/api`       | The HTTP and live-stream interface for the presentation layer. |
+| `internal/api`       | The HTTP interface for the presentation layer.               |
 
 The domain package imports nothing from the others. Storage interfaces are
 declared by their consumers, not by `postgres`.
@@ -34,9 +34,10 @@ declared by their consumers, not by `postgres`.
   the cloud and on-prem.
 - No network hop or serialization between ingest and state, which matters at
   100k messages per second.
-- The split point is already visible: ingest is sharded by robot ID, so at
-  larger scale each `fleetd` instance owns a range of robots (see ADR 0005).
-  The API can be split out because it only reads Postgres and a live feed.
+- The split point is already visible: every robot has exactly one owner in
+  the pipeline, so robots can be partitioned by ID across goroutines and
+  then across instances (ADR 0005). The API can be split out because it
+  only reads Postgres.
 - Cost: one process means one failure domain. A crash stops both ingest and
   reads until restart. Acceptable at this stage, and the restart path is
   designed to recover state from Postgres.

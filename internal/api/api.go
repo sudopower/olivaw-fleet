@@ -14,15 +14,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/sudopower/olivaw-fleet/internal/query"
 	"github.com/sudopower/olivaw-fleet/internal/registry"
 )
 
 // Deps are what the API needs from the rest of the system.
 type Deps struct {
 	Registry *registry.Registry
+	Query    query.Store
 	Ready    func(ctx context.Context) error // e.g. database ping
 	Metrics  prometheus.Gatherer
 	Log      *slog.Logger
+
+	// HistoryInterval is the finest resolution history is stored at, the
+	// smallest telemetry bucket worth asking for.
+	HistoryInterval time.Duration
 }
 
 type server struct {
@@ -40,6 +46,12 @@ func New(d Deps) http.Handler {
 
 	mux.HandleFunc("POST /v1/sites", s.createSite)
 	mux.HandleFunc("POST /v1/robots", s.provisionRobot)
+
+	mux.HandleFunc("GET /v1/summary", s.summary)
+	mux.HandleFunc("GET /v1/robots", s.listRobots)
+	mux.HandleFunc("GET /v1/robots/{id}", s.getRobot)
+	mux.HandleFunc("GET /v1/robots/{id}/telemetry", s.robotTelemetry)
+	mux.HandleFunc("GET /v1/alerts", s.listAlerts)
 
 	return s.recoverer(mux)
 }
