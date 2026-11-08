@@ -145,6 +145,24 @@ silent robot reads as offline even though its stored row still says online.
 - Contract tests per adapter against captured payloads from real robots.
 - Tracing across the flush path and a dashboard over the existing metrics.
 
+## How I used AI
+
+**Research.** I ride Lime often and have always been curious how they run
+their fleet: how many scooters and bikes are out there, how much data they
+produce, and what goes wrong. That was my way into what a robot fleet
+company deals with, and it led me to clock skew, duplicate messages from
+network retries and similar problems. I used AI to test and challenge my
+assumptions and to look into industry-standard approaches, which is how I
+learned about VDA 5050, MQTT and the other protocols robots and IoT devices
+use.
+
+**Building.** I used it to write specs, iterate on them, and create tests
+and implementations. I used it again to brainstorm the corner cases a real
+fleet runs into, which became the failure cases above. It also reviewed the
+code, and I asked for changes and for parts to be simplified. The first
+version was built for far more scale than this brief needs, so I cut it
+down to what is here.
+
 ## Development
 
 ```
