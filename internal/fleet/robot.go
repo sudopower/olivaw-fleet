@@ -150,22 +150,27 @@ func (r *Robot) setConnectivity(c Connectivity, at time.Time, events []Event) []
 	return events
 }
 
+// evaluateBattery raises battery alerts only when someone needs to act. A
+// robot that is charging is already being handled, so charging clears its
+// battery alerts and keeps new ones from being raised. A robot that runs low
+// away from its dock, or whose charger stopped working, is what the alert is
+// for.
 func (r *Robot) evaluateBattery(b Battery, at time.Time, p BatteryPolicy, events []Event) []Event {
-	events = r.hysteresis(AlertKey{Kind: AlertBatteryCritical}, b.Percent, p.CriticalBelow, p.CriticalClearAt,
+	events = r.hysteresis(AlertKey{Kind: AlertBatteryCritical}, b, p.CriticalBelow, p.CriticalClearAt,
 		SeverityCritical, at, events)
-	events = r.hysteresis(AlertKey{Kind: AlertBatteryLow}, b.Percent, p.LowBelow, p.LowClearAt,
+	events = r.hysteresis(AlertKey{Kind: AlertBatteryLow}, b, p.LowBelow, p.LowClearAt,
 		SeverityWarning, at, events)
 	return events
 }
 
-// hysteresis raises key when value drops below raiseBelow and clears it only
-// once value is back at or above clearAt.
-func (r *Robot) hysteresis(key AlertKey, value, raiseBelow, clearAt float64, sev Severity, at time.Time, events []Event) []Event {
+// hysteresis raises key when the charge drops below raiseBelow and clears it
+// only once it is back at or above clearAt, or the robot is charging.
+func (r *Robot) hysteresis(key AlertKey, b Battery, raiseBelow, clearAt float64, sev Severity, at time.Time, events []Event) []Event {
 	_, active := r.alerts[key]
 	switch {
-	case !active && value < raiseBelow:
-		return r.raise(Alert{Key: key, Severity: sev, Message: fmt.Sprintf("battery at %.0f%%", value)}, at, events)
-	case active && value >= clearAt:
+	case !active && !b.Charging && b.Percent < raiseBelow:
+		return r.raise(Alert{Key: key, Severity: sev, Message: fmt.Sprintf("battery at %.0f%%", b.Percent)}, at, events)
+	case active && (b.Charging || b.Percent >= clearAt):
 		return r.clear(key, at, events)
 	}
 	return events

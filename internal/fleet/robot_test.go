@@ -192,6 +192,29 @@ func TestBatteryHysteresis(t *testing.T) {
 	}
 }
 
+func TestBatteryAlertsIgnoreChargingRobots(t *testing.T) {
+	p := DefaultPolicy()
+	r := NewRobot("r1", "s")
+	charging := func(sec int, pct float64, on bool) Sample {
+		s := withBattery(sampleAt(sec), pct)
+		s.Battery.Charging = on
+		return s
+	}
+	r.Observe(charging(0, 30, false), p)
+
+	// Reached the dock low: charging, so nobody needs to act.
+	_, ev := r.Observe(charging(1, 9, true), p)
+	assertEvents(t, ev)
+
+	// Charger fault: still at 9% but no longer charging. Now it matters.
+	_, ev = r.Observe(charging(2, 9, false), p)
+	assertEvents(t, ev, "alert_raised:battery_critical", "alert_raised:battery_low")
+
+	// Someone fixed the charger: alerts clear without waiting for the charge.
+	_, ev = r.Observe(charging(3, 9, true), p)
+	assertEvents(t, ev, "alert_cleared:battery_critical", "alert_cleared:battery_low")
+}
+
 func TestFaultLifecycle(t *testing.T) {
 	p := DefaultPolicy()
 	r := NewRobot("r1", "s")
