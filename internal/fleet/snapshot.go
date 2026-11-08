@@ -50,17 +50,19 @@ func (r *Robot) Snapshot() Snapshot {
 // alerts are not raised a second time and ordering continues where it left
 // off.
 //
-// notBefore is the time the process started. Last-seen times are moved up to
-// it: while the process was down nobody was listening, so silence during the
-// outage says nothing about the robots. Without this, every robot would be
-// declared offline the moment the service came back.
+// notBefore is the time the process started. Silence is measured from it,
+// not from the last report: while the process was down nobody was listening,
+// so the outage says nothing about the robots. Without this, every robot
+// would be declared offline the moment the service came back. The true
+// last-seen time is kept for display.
 func Restore(s Snapshot, notBefore time.Time) *Robot {
 	r := NewRobot(s.RobotID, s.SiteID)
 	r.last = s.Last
 	r.hasSample = s.HasSample
 	r.lastSeen = s.LastSeen
-	if r.hasSample && r.lastSeen.Before(notBefore) {
-		r.lastSeen = notBefore
+	r.silentSince = s.LastSeen
+	if r.hasSample && r.silentSince.Before(notBefore) {
+		r.silentSince = notBefore
 	}
 	r.connectivity = s.Connectivity
 	if r.connectivity == "" {

@@ -227,6 +227,9 @@ func TestRestoreDoesNotReraiseOrTimeOutDuringOutage(t *testing.T) {
 	restored := Restore(snap, started)
 
 	assertEvents(t, restored.Tick(started.Add(time.Second), p))
+	if got := restored.Snapshot().LastSeen; !got.Equal(t0) {
+		t.Fatalf("last seen = %v, want the real %v: the restart must not show as a report", got, t0)
+	}
 
 	s := withBattery(sampleAt(601), 15)
 	_, ev := restored.Observe(s, p)

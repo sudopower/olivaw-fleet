@@ -20,7 +20,14 @@ type Robot struct {
 	last      Sample // last accepted sample
 	hasSample bool
 
-	lastSeen     time.Time // server time of the last accepted sample
+	lastSeen time.Time // server time of the last accepted sample
+
+	// silentSince is when the platform started waiting for the next report.
+	// Normally equal to lastSeen; after a restart it is the restart time, so
+	// the service's own downtime does not count as the robot's silence. Kept
+	// apart from lastSeen so "last seen" shown to people stays true.
+	silentSince time.Time
+
 	connectivity Connectivity
 	disconnected bool // the broker told us the connection dropped
 
@@ -81,6 +88,9 @@ func (r *Robot) Observe(s Sample, p Policy) (Outcome, []Event) {
 	if s.ReceivedAt.After(r.lastSeen) {
 		r.lastSeen = s.ReceivedAt
 	}
+	if r.lastSeen.After(r.silentSince) {
+		r.silentSince = r.lastSeen
+	}
 	r.disconnected = false
 
 	at := s.ReceivedAt
@@ -108,7 +118,7 @@ func (r *Robot) Tick(now time.Time, p Policy) []Event {
 	if !r.hasSample {
 		return nil // never reported; nothing to time out
 	}
-	c := p.Liveness.Assess(r.lastSeen, now)
+	c := p.Liveness.Assess(r.silentSince, now)
 	if r.disconnected {
 		c = Offline
 	}
